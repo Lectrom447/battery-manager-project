@@ -74,7 +74,7 @@
 
 <script lang="ts">
   import Vue from 'vue'
-import { ipcRenderer } from 'electron';
+import { ipcRenderer, dialog } from 'electron';
 import { serialWrite } from "../../tools/serialComunicationManager";
 
   import  { PortInfo } from 'serialport';

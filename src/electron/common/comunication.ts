@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+'use strict'
+import { app, BrowserWindow, dialog, ipcMain, Notification } from 'electron';
 
 import {
   connectToSerialPort,
@@ -26,9 +27,12 @@ export const startComunications = (win:BrowserWindow):void => {
                 try {
                     await connectToSerialPort(args.payload.path, args.payload.baudRate);
                     startMonitoring(win);
+
+                    new Notification({title:'Conexion establecida'}).show();
                     return {status: 'ok'}
                 } catch (error) {
-                    return {status: 'error', payload: {description: error}}
+                    await dialog.showErrorBox('Conexion fallida', error.message);
+                    return {status: 'error', payload: {description: error.message}}
                 }
                 break;
             }
