@@ -20,5 +20,10 @@ export default Vue.extend({
   data: () => ({
     //
   }),
+  mounted: function() {
+    if(this.$route.path !== '/'){
+      this.$router.push('/')
+    }
+  }
 });
 </script>
