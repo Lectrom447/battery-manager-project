@@ -1,15 +1,14 @@
 'use strict'
 
-import './electron/common/comunication';
-
 import {
   app,
   BrowserWindow,
+  Menu,
   protocol,
 } from 'electron';
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer';
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib';
-
+import { startComunications } from "./electron/common/comunication";
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
 // Scheme must be registered before the app is ready
@@ -43,6 +42,9 @@ async function createWindow() {
     // Load the index.html when not in development
     win.loadURL('app://./index.html')
   }
+  
+  startComunications(win);
+  win.webContents.send('app-ready');
 }
 
 // Quit when all windows are closed.
@@ -73,7 +75,12 @@ app.on('ready', async () => {
     }
   }
   createWindow()
+  
+
 })
+
+
+
 
 // Exit cleanly on request from parent process in development mode.
 if (isDevelopment) {

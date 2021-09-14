@@ -1,130 +1,91 @@
 <template>
-<div>
+  <div class="mt-5">
     <v-card>
-      <v-card-title>Selecione dispositivo</v-card-title>
-      <v-row>
-        <v-col 
-        md="4"
-        xs = "6"
-        >
-          
-            <div class="px-10">
-              <v-row>
-                <v-select
-                  :disabled="serialPorts.length === 0 || connectioStatus == 'connected' || connectioStatus == 'pending'"
-                  :items="getSerialsPath"
-                  v-model="portSelected"
-                  @change="serialSelectionChange"
-                  label="Puerto"
-                  dense
-                  outlined
-                ></v-select>
-              <v-btn
-                :disabled="connectioStatus == 'connected' || connectioStatus == 'pending'"
-                id="syncSerialsBtn" 
-                @click="getSerials"
-                icon
-                ><v-icon>mdi-sync</v-icon></v-btn>
-              </v-row>
-              <v-row class="mb-6">
-                <div
-                    id="baudRateSelect"
-                >
-                  <v-select    
-                    :disabled="serialPorts.length === 0 || connectioStatus == 'connected' || connectioStatus == 'pending'"
-                    class="mr-5"
-                    :items="BaudrateOpt"
-                    v-model="baudRateSelected"
-                    dense
-                    outlined
-                    label="BaudRate"
-                  ></v-select>
-                </div>
-                <v-btn
-                v-if="connectioStatus ===  'pending' || connectioStatus ===  'disconnected'"
-                :disabled="serialPorts.length === 0 || connectioStatus == 'pending'"
-                @click="serialConnect"
-                 color="success"
-                >Conectar</v-btn>
-                <v-btn
-                v-if="connectioStatus ===  'connected'"
-                @click="serialDisconnect"
-                 color="error"
-                >Desonectar</v-btn>
-                <v-btn
-                 :disabled=" connectioStatus == 'disconnected'"
-                @click="serialWrite"
-                 color="primary"
-                >Ping</v-btn>
-              </v-row>
-          </div>
-        </v-col>  
-      </v-row>
+      <v-card-title>
+        <h3>Serial Console</h3>
+        <v-container id="scroll-target" style="height: 300px" class="overflow-y-auto"> 
+          <v-container class="d-flex  flex-column-reverse" v-scroll:#scroll-target="onScroll" style="min-height: 300px">
+            <p class="log-style" v-for="item in consoleHistory" :key="item.index">{{item}}</p>
+          </v-container >
+        </v-container>
+        <v-text-field
+          outlined
+          dense
+          :disabled="!isConected"
+          prepend-inner-icon="mdi-chevron-right"
+          v-model="consoleInput"
+          @keypress="handleConsoleInputChange"
+        ></v-text-field>
+      </v-card-title>
 
     </v-card>
-</div>
+  </div>
 </template>
 
-<script lang="ts">
-  import Vue from 'vue'
-  import {ipcRenderer} from 'electron';
-  import  { PortInfo } from 'serialport';
+<script lang='ts'>
+import { ipcRenderer } from 'electron';
+import Vue from 'vue';
+import { serialWrite } from "../tools/serialComunicationManager";
 
 
-  export default Vue.extend({
-    name: 'Home',
-
-    components: {
-    },
-    data () {
-      return{
-        serialPorts:[],
-        connectioStatus: 'disconnected',
-        portSelected: '',
-        baudRateSelected: 9600,
-        BaudrateOpt: [
-          9600,
-          1200
-        ]
-      }
-    },
-    computed:{
-      getSerialsPath ():Array<string> {
-        let serials = this.serialPorts;
-        return serials.map((val:PortInfo) => {return val.path})
-      }
-    },
-    methods:{
-      getSerials() {
-          this.serialPorts = ipcRenderer.sendSync('serialPortsList');
-          if(this.serialPorts.length !== 0){
-            this.portSelected = this.getSerialsPath[0];
-          }
-          
-      },
-      serialSelectionChange() {
-        console.log(this.portSelected)
-      },
-      serialConnect () {
-        ipcRenderer.sendSync('serialPortConection',{action:'connect',payload:{path:this.portSelected,baudRate:this.baudRateSelected}});
-        this.connectioStatus = 'connected';
-      },
-      serialWrite () {
-        ipcRenderer.sendSync('serialPortConection',{action:'write',payload:{data:'Hola'}});
-      },
-      serialDisconnect () {
-        ipcRenderer.sendSync('serialPortConection',{action:'disconnect',payload:{}});
-        this.connectioStatus = 'disconnected';
-      }
-    },
-    mounted: function () {
-      this.getSerials()
+export default Vue.extend({
+  data() {
+    return{
+      consoleInput:'',
+      consoleHistory:[''],
+      offsetTop:0
     }
-  })
+  },
+  computed:{
+    conectionStatus(){
+      return this.$store.state.conectionStatus
+    },
+
+    isConected():boolean{
+      return this.conectionStatus === 'connected'
+    }
+  },
+  methods: {
+    handleConsoleInputChange(e:KeyboardEvent) {
+      if(e.code === "Enter"){
+        this.consoleHistory.unshift(this.consoleInput)
+        serialWrite(this.consoleInput);
+        this.consoleInput = ''
+        this.scrollDown()
+      }
+      
+    },
+    startDataMonitoring(){
+      ipcRenderer.on('newSerialData', (event, data) => {
+        // console.log(new TextDecoder().decode(data) );
+        this.consoleHistory.unshift(`[Arduino]: ${data}`)
+    })
+
+    },
+    scrollDown(){
+        const object = document.querySelector('#scroll-target');
+        if(object){
+          console.log(object.scrollHeight);
+          
+          object.scrollTop = object.scrollHeight - 300
+        }
+    },
+      onScroll (e:any) {
+        this.offsetTop =  e.target.scrollTop
+      }
+  },
+  mounted: function(){
+    this.startDataMonitoring();
+  }
+
+})
 </script>
 
 <style scoped>
-  #baudRateSelect {
-    max-width: 12rem!important;
+  .log-style{
+    font-size: 14px;
+    margin: 0!important;
+    padding: 0!important;
+    height: 20px;
   }
 </style>
